@@ -24,8 +24,8 @@ SELECT  CONCAT(venture,"_",BUYER_ID) AS BUYER_ID
         ,SUM(
             CASE    WHEN RETURN_INITIATE_DATE IS NOT NULL AND return_complete_date IS NULL THEN 1 ELSE 0 END
         ) AS COUNT_RID
-FROM    daraz_cdm.dwd_drz_trd_core_df
-WHERE   ds = MAX_PT('daraz_cdm.dwd_drz_trd_core_df')
+FROM    sales_table
+WHERE   ds = MAX_PT('sales_table')
 AND     delivery_date IS NOT NULL
 AND     fulfillment_create_date IS NOT NULL
 AND     UNIT_PRICE > 1
@@ -50,9 +50,9 @@ SELECT  DISTINCT a.*
         ,b.email_address
         ,b.phone_number
 FROM    BUYERS_NOT_COMPLETED_RETURN a
-LEFT JOIN daraz_cdm.dwd_drz_trd_core_df b
+LEFT JOIN sales_table b
 ON      a.buyer_id = CONCAT(b.venture,"_",b.buyer_id)
-WHERE   ds = MAX_PT('daraz_cdm.dwd_drz_trd_core_df')
+WHERE   ds = MAX_PT('sales_table')
 AND     b.delivery_date IS NOT NULL
 AND     b.fulfillment_create_date IS NOT NULL
 AND     b.UNIT_PRICE > 1
@@ -89,9 +89,9 @@ SELECT  DISTINCT a.*
         ,b.phone
         ,b.email
 FROM    BUYERS_NOT_COMPLETED_RETURN a
-LEFT JOIN daraz_cdm.dim_drz_usr b
+LEFT JOIN buyers_table b
 ON      a.buyer_id = CONCAT(b.venture,"_",b.user_id)
-WHERE   ds = MAX_PT('daraz_cdm.dim_drz_usr')
+WHERE   ds = MAX_PT('buyers_table')
 AND     a.buyer_id NOT IN (
             SELECT  buyer_id
             FROM    BUYERS_COMPLETED_RETURN
