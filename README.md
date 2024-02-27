@@ -22,3 +22,7 @@ to identify customers who have never engaged in the return process throughout th
   3. [Return Funnel Leakage Analysis](https://github.com/Asadsajid1997/SQL-Projects/blob/main/Scripts/Return%20Funnel%20Leakage%20Analysis): The analysis commenced with the extraction of data from JSON files, meticulously structured to map out the customer journey within our mobile application. The primary focus was to scrutinize the customer's navigation through the return funnel, pinpointing the stages at which attrition occurred. Through the strategic use of Common Table Expressions (CTEs) and subqueries, we tracked the volume of customers visiting each page of the app, thereby identifying critical drop-off points within the return process.
 
   4. [Fraud Detection](https://github.com/Asadsajid1997/SQL-Projects/blob/main/Scripts/Fraud%20Detection): The project focused on identifying customers with high rates of failed deliveries and order rejections, using subqueries and window functions for analysis. These customers, often refusing deliveries or providing incorrect addresses, incurred significant logistics costs. The analysis enabled targeted actions, such as requiring prepaid orders or blocking them, to reduce financial losses and improve operational efficiency.
+
+# Gold Badge from HackerRank
+![image](https://github.com/Asadsajid1997/SQL-Projects/assets/126636246/41168564-9e31-44b7-bce3-32e08a2d0cd5)
+
