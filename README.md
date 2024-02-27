@@ -10,5 +10,6 @@ I am a passionate data enthusiast with a strong background in SQL. Over the year
 
 
 # SQL Projects
+In this repository, you will find SQL projects executed on the real life data of one of the largest e-commerce company of Pakistan.
 
 
