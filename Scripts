@@ -1,0 +1,96 @@
+DROP TABLE IF EXISTS BUYERS_COMPLETED_RETURN
+;
+
+CREATE TABLE BUYERS_COMPLETED_RETURN
+LIFECYCLE 7 AS
+SELECT  DISTINCT CONCAT(venture,"_",BUYER_ID) Buyer_id
+FROM    daraz_cdm.dwd_drz_trd_core_df
+WHERE   DS = MAX_PT('daraz_cdm.dwd_drz_trd_core_df')
+AND     fulfillment_create_date IS NOT NULL
+AND     UNIT_PRICE > 1
+AND     RETURN_COMPLETE_DATE IS NOT NULL
+AND     TO_CHAR(fulfillment_create_date,'YYYY-MM-DD') <= TO_CHAR(GETDATE(),'YYYY-MM-DD')
+;
+
+DROP TABLE IF EXISTS BUYERS_NOT_COMPLETED_RETURN
+;
+
+CREATE TABLE BUYERS_NOT_COMPLETED_RETURN
+LIFECYCLE 7 AS
+SELECT  CONCAT(venture,"_",BUYER_ID) AS BUYER_ID
+        ,COUNT(DISTINCT ORDER_NUMBER) AS NUMBER_OF_ORDERS
+        ,SUM(
+            CASE    WHEN RETURN_INITIATE_DATE IS NOT NULL AND return_complete_date IS NULL THEN 1 ELSE 0 END
+        ) AS COUNT_RID
+FROM    daraz_cdm.dwd_drz_trd_core_df
+WHERE   ds = MAX_PT('daraz_cdm.dwd_drz_trd_core_df')
+AND     delivery_date IS NOT NULL
+AND     fulfillment_create_date IS NOT NULL
+AND     UNIT_PRICE > 1
+AND     TO_CHAR(fulfillment_create_date,'YYYY-MM-DD') <= TO_CHAR(GETDATE(),'YYYY-MM-DD')
+AND     TO_CHAR(fulfillment_create_date,'YYYY-MM-DD') >= '2023-07-01'
+AND     CONCAT(venture,"_",BUYER_ID) NOT IN (
+            SELECT  buyer_id
+            FROM    BUYERS_COMPLETED_RETURN
+            WHERE   buyer_id IS NOT NULL
+        ) 
+GROUP BY CONCAT(venture,"_",BUYER_ID)
+HAVING  COUNT(DISTINCT ORDER_NUMBER) >= 3
+;
+
+DROP TABLE IF EXISTS BUYERS_NOT_COMPLETED_RETURN_email_number
+;
+
+CREATE TABLE BUYERS_NOT_COMPLETED_RETURN_email_number
+LIFECYCLE 7 AS
+SELECT  DISTINCT a.*
+        ,b.email_address
+        ,b.phone_number
+FROM    BUYERS_NOT_COMPLETED_RETURN a
+LEFT JOIN daraz_cdm.dwd_drz_trd_core_df b
+ON      a.buyer_id = CONCAT(b.venture,"_",b.buyer_id)
+WHERE   ds = MAX_PT('daraz_cdm.dwd_drz_trd_core_df')
+AND     b.delivery_date IS NOT NULL
+AND     b.fulfillment_create_date IS NOT NULL
+AND     b.UNIT_PRICE > 1
+AND     TO_CHAR(b.fulfillment_create_date,'YYYY-MM-DD') <= TO_CHAR(GETDATE(),'YYYY-MM-DD')
+AND     TO_CHAR(b.fulfillment_create_date,'YYYY-MM-DD') >= '2023-07-01'
+AND     CONCAT(b.venture,"_",b.BUYER_ID) NOT IN (
+            SELECT  buyer_id
+            FROM    BUYERS_COMPLETED_RETURN
+            WHERE   buyer_id IS NOT NULL
+        ) 
+;
+
+SELECT  SUBSTRING(buyer_id,1,2) 
+        ,COUNT(DISTINCT buyer_id)
+FROM    BUYERS_NOT_COMPLETED_RETURN_email_number
+GROUP BY SUBSTRING(buyer_id,1,2)
+;
+
+SELECT  LENGTH(phone) 
+        ,COUNT(DISTINCT buyer_id)
+FROM    BUYERS_NOT_COMPLETED_RETURN_email_number
+GROUP BY LENGTH(phone)
+;
+
+DROP TABLE IF EXISTS BUYERS_NOT_COMPLETED_RETURN_email_number
+;
+
+CREATE TABLE BUYERS_NOT_COMPLETED_RETURN_email_number
+LIFECYCLE 7 AS
+SELECT  DISTINCT a.*
+        ,b.phone
+        ,b.email
+FROM    BUYERS_NOT_COMPLETED_RETURN a
+LEFT JOIN daraz_cdm.dim_drz_usr b
+ON      a.buyer_id = CONCAT(b.venture,"_",b.user_id)
+WHERE   ds = MAX_PT('daraz_cdm.dim_drz_usr')
+AND     a.buyer_id NOT IN (
+            SELECT  buyer_id
+            FROM    BUYERS_COMPLETED_RETURN
+            WHERE   buyer_id IS NOT NULL
+        ) 
+AND     SUBSTRING(a.buyer_id,1,2) IN ('LK','MM','NP')
+;
+
