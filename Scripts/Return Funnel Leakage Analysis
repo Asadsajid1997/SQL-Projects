@@ -1,0 +1,2644 @@
+-- Extraction the application data with the help of CTEs
+
+DROP TABLE IF EXISTS overall_return_funnel;
+CREATE TABLE overall_return_funnel LIFECYCLE 7 AS
+WITH  app_logs_data  AS (
+
+SELECT  *
+
+        ,GET_JSON_OBJECT(args_json,'$.color') color
+
+        ,GET_JSON_OBJECT(args_json,'$.reason') return_reason
+
+FROM    (
+
+            SELECT  *
+
+                    ,REPLACE(CONCAT('{"',REPLACE(args,'=','":"'),'"}'),',','","') args_json
+
+            FROM    glb_drz_cdm.mid_glb_log_app_di_v
+
+            WHERE   
+
+           ds >= '20230901'
+
+           AND     ds < '20240101'
+
+            AND     event_type IN ('cntrl')
+
+            AND     TOLOWER(os) in ('android' , 'iphone os')
+
+            AND     app_id IN ('24936599@iphoneos','24937400@iphoneos','24937026@android','24938611@android', 
+
+                            '25534648@iphoneos','25219813@android', 
+
+                            '25210016@android', '24936599@ipad', 
+
+                            '24937400@ipad', '25534648@ipad')
+
+            AND     arg1 IN ('/lazada_member.myaccount_orders.viewall_click','/lazada_order_mgt.order_list.click_order_card'
+
+     ,'/lazada_order_mgt.order_details.only_refund_item_mobile','/daraz-return-process.create-return.enter','/daraz-refund-only-process.create-return.enter'
+
+     ,'/daraz-refund-only-process.create-return.return-reason-L1','/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-refund-only-process.create-return.add-product','/daraz-refund-only-process.create-return.comment','/daraz-refund-only-process.create-return.submit-button'
+
+     ,'/daraz-return-process.create-return.return-reason-L1','/daraz-return-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-return-process.create-return.comment','/daraz-return-process.create-return.add-product','/daraz-return-process.create-return.next-step1',
+
+     '/daraz-return-process.create-return.pick-up','/daraz-return-process.create-return.drop-off','/daraz-return-process.create-return.next-step2'
+
+     ,'/daraz-return-process.create-return.submit-confirm','/daraz-return-process.return-detail.enter','/daraz-return-process.return-detail.leave'
+
+     ,'/daraz-refund-only-process.return-detail.enter','/daraz-return-process.progress-tracking.enter','/daraz-refund-only-process.progress-tracking.enter'
+
+     ,'/daraz-return-process.progress-tracking.leave','/lazada_logistic_detail.logistic_detail.back_to_order_detail',
+
+     '/lazada_order_mgt.order_details.click_track_package', '/daraz-return-process.create-return.submit-button')
+
+        ) 
+
+),
+
+
+
+app_logs_data_ref AS(
+
+select *
+
+       ,case when return_reason = 'Component or accessory is missing from the item' then 'Missing'
+
+             when return_reason = 'Item has missing freebie' then 'Missing'
+
+             when return_reason = 'Item or accessory is missing in the package' then 'Missing'
+
+             when return_reason = 'Missing' then return_reason
+
+             when return_reason = 'Missing item' then 'Missing'
+
+             when return_reason = 'Item is damaged/broken/has dent or scratches' then 'Damage/Defective'
+
+             when return_reason = 'Item is defective or not working' then 'Damage/Defective'
+
+             when return_reason = 'Item does not match description or picture' then 'Others'
+
+             when return_reason = 'I did not order this size' then 'Others'
+
+             when return_reason = 'I received the wrong item' then 'Others'
+
+             when return_reason = 'Item does not fit me' then 'Others'
+
+             when return_reason = 'Don\'t want the item anymore' then 'Others'
+
+             when return_reason = 'The item is fake or is a counterfeit item' then 'Others'
+
+             when return_reason not in ( 'Component or accessory is missing from the item','Item has missing freebie'
+
+                                        ,'Item or accessory is missing in the package','Missing','Missing item'
+
+                                        ,'Item is damaged/broken/has dent or scratches','Item is defective or not working'
+
+                                        ,'Item does not match description or picture','I did not order this size'
+
+                                        ,'I received the wrong item','Item does not fit me','Don\'t want the item anymore'
+
+                                        ,'The item is fake or is a counterfeit item','\\N') then 'Localization'
+
+             else '\\N' end as return_reason_map
+
+        ,case when color is null then 'enable' else color end as color_map
+
+from app_logs_data
+
+),
+
+
+
+overall_return_funnel AS(
+
+select 'PRE_ORF_Page' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        --,b.ds      as ds
+
+        ,b.venture as venture
+
+        --,a.return_reason_map 
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-return-process.create-return.enter',
+
+                '/daraz-refund-only-process.create-return.enter')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+
+
+UNION ALL 
+
+
+
+select 'Page_1' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        --,b.ds      as ds
+
+        ,b.venture as venture
+
+        --,a.return_reason_map 
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-return-process.create-return.next-step1')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/daraz-return-process.create-return.enter'
+
+    and utdid in (
+
+        select DISTINCT utdid 
+
+        from app_logs_data_ref
+
+        where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+        and utdid is not null
+
+    )
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+UNION ALL 
+
+
+
+select 'Page_2' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        --,b.ds      as ds
+
+        ,b.venture as venture
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-return-process.create-return.next-step2')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/daraz-return-process.create-return.next-step1'
+
+    and utdid in (
+
+        select DISTINCT utdid 
+
+        from app_logs_data_ref
+
+        where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+        and utdid is not null
+
+    )
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+UNION ALL 
+
+
+
+select 'Page_3' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        --,b.ds      as ds
+
+        ,b.venture as venture
+
+        --,a.return_reason_map 
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-return-process.create-return.submit-button')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/daraz-return-process.create-return.next-step2'
+
+    and utdid in (
+
+        select DISTINCT utdid 
+
+        from app_logs_data_ref
+
+        where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+        and utdid is not null
+
+    )
+
+    
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+UNION ALL 
+
+
+
+select 'Submit' as identifier
+
+        ,NULL   as button_utdid
+
+        ,utdid   as page_utdid
+
+        ,NULL    as button_arg1
+
+        ,arg1    as page_arg1
+
+        --,ds      as ds
+
+        ,venture as venture
+
+        --,a.return_reason_map 
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-return-process.create-return.submit-confirm'
+
+and utdid in (
+
+        select DISTINCT utdid 
+
+        from app_logs_data_ref
+
+        where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+        and utdid is not null
+
+    )
+
+
+
+),
+
+
+
+overall_return_funnel_stats AS(
+
+SELECT  -- ds,
+venture
+
+        ,page_arg1
+
+        ,button_arg1
+
+        ,identifier
+
+        ,count_page
+
+        ,COUNT(DISTINCT (page_utdid)) as user_count
+
+FROM    (
+
+            SELECT  *
+
+                    ,COUNT(DISTINCT page_utdid) OVER (PARTITION BY venture,page_arg1 ) AS count_page
+
+            FROM    overall_return_funnel
+
+        ) 
+
+GROUP BY -- ds,
+venture
+
+         ,page_arg1
+
+         ,button_arg1
+
+         ,identifier
+
+         ,count_page
+
+
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- INSERT OVERWRITE TABLE ads_drz_overall_return_funnel_stats PARTITION(ds, venture)
+
+Select 'PRE_ORF_Page' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       --,ds
+       ,venture
+
+FROM overall_return_funnel_stats
+
+WHERE button_arg1 = '/daraz-return-process.create-return.enter'
+
+
+UNION ALL 
+
+
+
+Select 'Page_1' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       -- ,ds
+       ,venture
+
+FROM overall_return_funnel_stats
+
+WHERE page_arg1 = '/daraz-return-process.create-return.enter'
+
+and button_arg1 is not NULL 
+
+
+
+UNION ALL 
+
+
+
+
+Select 'Page_2' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       -- ,ds
+       ,venture
+
+FROM overall_return_funnel_stats
+
+WHERE page_arg1 = '/daraz-return-process.create-return.next-step1'
+
+and button_arg1 is not NULL 
+
+
+UNION ALL 
+
+
+
+Select 'Page_3' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       --,ds
+       ,venture
+
+FROM overall_return_funnel_stats
+
+WHERE page_arg1 = '/daraz-return-process.create-return.next-step2'
+
+and button_arg1 is not NULL 
+
+
+
+UNION ALL 
+
+
+
+Select 'Submit' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       -- ,ds
+       ,venture
+
+FROM overall_return_funnel_stats
+
+WHERE page_arg1 = '/daraz-return-process.create-return.submit-confirm'
+
+
+;
+
+-- Overall refund funnel
+
+DROP TABLE IF EXISTS overall_refund_funnel;
+CREATE TABLE overall_refund_funnel LIFECYCLE 7 AS
+WITH  app_logs_data  AS (
+
+SELECT  *
+
+        ,GET_JSON_OBJECT(args_json,'$.color') color
+
+        ,GET_JSON_OBJECT(args_json,'$.reason') return_reason
+
+FROM    (
+
+            SELECT  *
+
+                    ,REPLACE(CONCAT('{"',REPLACE(args,'=','":"'),'"}'),',','","') args_json
+
+            FROM    glb_drz_cdm.mid_glb_log_app_di_v
+
+            WHERE              ds >= '20230901'
+
+           AND     ds < '20240101'
+
+            AND     event_type IN ('cntrl')
+
+            AND     TOLOWER(os) in ('android' , 'iphone os')
+
+            AND     app_id IN ('24936599@iphoneos','24937400@iphoneos','24937026@android','24938611@android', 
+
+                            '25534648@iphoneos','25219813@android', 
+
+                            '25210016@android', '24936599@ipad', 
+
+                            '24937400@ipad', '25534648@ipad')
+
+            AND     arg1 IN ('/lazada_member.myaccount_orders.viewall_click','/lazada_order_mgt.order_list.click_order_card'
+
+     ,'/lazada_order_mgt.order_details.only_refund_item_mobile','/daraz-return-process.create-return.enter','/daraz-refund-only-process.create-return.enter'
+
+     ,'/daraz-refund-only-process.create-return.return-reason-L1','/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-refund-only-process.create-return.add-product','/daraz-refund-only-process.create-return.comment','/daraz-refund-only-process.create-return.submit-button'
+
+     ,'/daraz-return-process.create-return.return-reason-L1','/daraz-return-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-return-process.create-return.comment','/daraz-return-process.create-return.add-product','/daraz-return-process.create-return.next-step1',
+
+     '/daraz-return-process.create-return.pick-up','/daraz-return-process.create-return.drop-off','/daraz-return-process.create-return.next-step2'
+
+     ,'/daraz-return-process.create-return.submit-button','/daraz-return-process.return-detail.enter','/daraz-return-process.return-detail.leave'
+
+     ,'/daraz-refund-only-process.return-detail.enter','/daraz-return-process.progress-tracking.enter','/daraz-refund-only-process.progress-tracking.enter'
+
+     ,'/daraz-return-process.progress-tracking.leave','/lazada_logistic_detail.logistic_detail.back_to_order_detail',
+
+     '/lazada_order_mgt.order_details.click_track_package', '/daraz-return-process.create-return.submit-confirm')
+
+        ) 
+
+),
+
+
+
+app_logs_data_ref AS(
+
+select *
+
+       ,case when return_reason = 'Component or accessory is missing from the item' then 'Missing'
+
+             when return_reason = 'Item has missing freebie' then 'Missing'
+
+             when return_reason = 'Item or accessory is missing in the package' then 'Missing'
+
+             when return_reason = 'Missing' then return_reason
+
+             when return_reason = 'Missing item' then 'Missing'
+
+             when return_reason = 'Item is damaged/broken/has dent or scratches' then 'Damage/Defective'
+
+             when return_reason = 'Item is defective or not working' then 'Damage/Defective'
+
+             when return_reason = 'Item does not match description or picture' then 'Others'
+
+             when return_reason = 'I did not order this size' then 'Others'
+
+             when return_reason = 'I received the wrong item' then 'Others'
+
+             when return_reason = 'Item does not fit me' then 'Others'
+
+             when return_reason = 'Don\'t want the item anymore' then 'Others'
+
+             when return_reason = 'The item is fake or is a counterfeit item' then 'Others'
+
+             when return_reason not in ( 'Component or accessory is missing from the item','Item has missing freebie'
+
+                                        ,'Item or accessory is missing in the package','Missing','Missing item'
+
+                                        ,'Item is damaged/broken/has dent or scratches','Item is defective or not working'
+
+                                        ,'Item does not match description or picture','I did not order this size'
+
+                                        ,'I received the wrong item','Item does not fit me','Don\'t want the item anymore'
+
+                                        ,'The item is fake or is a counterfeit item','\\N') then 'Localization'
+
+             else '\\N' end as return_reason_map
+
+        ,case when color is null then 'enable' else color end as color_map
+
+from app_logs_data
+
+),
+
+
+
+overall_refund_funnel AS(
+
+select 'PRE_ORF_Page' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        ,b.ds      as ds
+
+        ,b.venture as venture
+
+        --,a.return_reason_map 
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-return-process.create-return.enter',
+
+                '/daraz-refund-only-process.create-return.enter')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+
+
+UNION ALL 
+
+
+
+select 'Page_1' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        ,b.ds      as ds
+
+        ,b.venture as venture
+
+        --,a.return_reason_map 
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-refund-only-process.create-return.submit-button')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/daraz-refund-only-process.create-return.enter'
+
+    and utdid in (
+
+        select DISTINCT utdid 
+
+        from app_logs_data_ref
+
+        where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+        and utdid is not null
+
+    )
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+UNION ALL 
+
+
+
+select 'Submit' as identifier
+
+        ,NULL   as button_utdid
+
+        ,utdid   as page_utdid
+
+        ,NULL    as button_arg1
+
+        ,arg1    as page_arg1
+
+        ,ds      as ds
+
+        ,venture as venture
+
+        --,a.return_reason_map 
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-refund-only-process.create-return.submit-confirm'
+
+and utdid in (
+
+        select DISTINCT utdid 
+
+        from app_logs_data_ref
+
+        where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+        and utdid is not null
+
+    )
+
+),
+
+
+
+overall_refund_funnel_stats AS(
+
+SELECT  ds
+
+        ,venture
+
+        ,page_arg1
+
+        ,button_arg1
+
+        ,identifier
+
+        ,count_page
+
+        ,COUNT(DISTINCT (page_utdid)) as user_count
+
+FROM    (
+
+            SELECT  *
+
+                    ,COUNT(DISTINCT page_utdid) OVER (PARTITION BY ds,venture,page_arg1 ) AS count_page
+
+            FROM    overall_refund_funnel
+
+        ) 
+
+GROUP BY ds
+
+         ,venture
+
+         ,page_arg1
+
+         ,button_arg1
+
+         ,identifier
+
+         ,count_page
+
+
+
+)
+
+
+
+
+
+
+Select 'PRE_ORF_Page' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       ,ds,venture
+
+FROM overall_refund_funnel_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.enter'
+
+
+
+UNION ALL 
+
+
+
+Select 'PRE_ORF_Page' as section
+
+       ,Round(user_count/count_page,6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds,venture
+
+FROM (
+
+    select ds,venture,page_arg1, sum(user_count) as user_count, max(count_page) as count_page
+
+FROM  overall_refund_funnel_stats
+
+WHERE page_arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+and button_arg1 is not NULL
+
+group by ds,venture,page_arg1
+
+)
+
+
+
+UNION ALL 
+
+
+
+Select 'PRE_ORF_Page' as section
+
+       ,Round(1-(user_count/count_page),6) as result
+
+       ,'Drop off (%)' as fact
+
+       ,ds,venture
+
+FROM (
+
+    select ds,venture,page_arg1, sum(user_count) as user_count, max(count_page) as count_page
+
+FROM  overall_refund_funnel_stats
+
+WHERE page_arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+and button_arg1 is not NULL
+
+group by ds,venture,page_arg1
+
+)
+
+
+
+UNION ALL 
+
+
+
+Select 'Page_1' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       ,ds,venture
+
+FROM overall_refund_funnel_stats
+
+WHERE page_arg1 = '/daraz-refund-only-process.create-return.enter'
+
+and button_arg1 is not NULL 
+
+
+
+UNION ALL 
+
+
+
+Select 'Page_1' as section
+
+       ,Round(max(count_page_1)/max(count_page_pre),6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds,venture
+
+FROM (
+
+    select ds,venture
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.enter' then count_page else 0 end as count_page_1
+
+    ,case when page_arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile' then count_page else 0 end as count_page_pre
+
+    --sum(user_count) as user_count, max(count_page) as count_page
+
+FROM  overall_refund_funnel_stats
+
+WHERE page_arg1 in ( '/daraz-refund-only-process.create-return.enter','/lazada_order_mgt.order_details.only_refund_item_mobile')
+
+and button_arg1 is not NULL
+
+)
+
+group by ds,venture
+
+
+
+UNION ALL 
+
+
+
+Select 'Page_1' as section
+
+       ,Round(1-(max(count_page_1)/max(count_page_pre)),6) as result
+
+       ,'Drop off (%)' as fact
+
+       ,ds,venture
+
+FROM (
+
+    select ds,venture
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.enter' then count_page else 0 end as count_page_1
+
+    ,case when page_arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile' then count_page else 0 end as count_page_pre
+
+    --sum(user_count) as user_count, max(count_page) as count_page
+
+FROM  overall_refund_funnel_stats
+
+WHERE page_arg1 in ( '/daraz-refund-only-process.create-return.enter','/lazada_order_mgt.order_details.only_refund_item_mobile')
+
+and button_arg1 is not NULL
+
+)
+
+group by ds,venture
+
+
+
+UNION ALL 
+
+
+
+Select 'Submit' as section
+
+       ,count_page as result
+
+       ,'Number of Visitors' as fact
+
+       ,ds,venture
+
+FROM overall_refund_funnel_stats
+
+WHERE page_arg1 = '/daraz-refund-only-process.create-return.submit-confirm'
+
+--and button_arg1 is not NULL 
+
+
+
+UNION ALL 
+
+
+
+Select 'Submit' as section
+
+       ,Round(max(count_page_submit)/max(count_page),6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds,venture
+
+FROM (
+
+    select ds,venture
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.submit-confirm' then count_page else 0 end as count_page_submit
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.enter' then count_page else 0 end as count_page
+
+    --sum(user_count) as user_count, max(count_page) as count_page
+
+FROM  overall_refund_funnel_stats
+
+WHERE page_arg1 in ( '/daraz-refund-only-process.create-return.submit-confirm','/daraz-refund-only-process.create-return.enter')
+
+--and button_arg1 is not NULL
+
+)
+
+group by ds,venture
+
+
+
+UNION ALL 
+
+
+
+Select 'Submit' as section
+
+       ,Round(1-(max(count_page_submit)/max(count_page)),6) as result
+
+       ,'Drop off (%)' as fact
+
+       ,ds,venture
+
+FROM (
+
+    select ds,venture
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.submit-confirm' then count_page else 0 end as count_page_submit
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.enter' then count_page else 0 end as count_page
+
+    --sum(user_count) as user_count, max(count_page) as count_page
+
+FROM  overall_refund_funnel_stats
+
+WHERE page_arg1 in ( '/daraz-refund-only-process.create-return.submit-confirm','/daraz-refund-only-process.create-return.enter')
+
+--and button_arg1 is not NULL
+
+)
+
+group by ds,venture
+
+;
+
+-- Order details
+DROP TABLE IF EXISTS order_details_page;
+CREATE TABLE order_details_page LIFECYCLE 7 AS
+WITH  app_logs_data  AS (
+
+SELECT  *
+
+        ,GET_JSON_OBJECT(args_json,'$.color') color
+
+        ,GET_JSON_OBJECT(args_json,'$.reason') return_reason
+
+FROM    (
+
+            SELECT  *
+
+                    ,REPLACE(CONCAT('{"',REPLACE(args,'=','":"'),'"}'),',','","') args_json
+
+            FROM    glb_drz_cdm.mid_glb_log_app_di_v
+
+            WHERE              ds >= '20230901'
+
+           AND     ds < '20240101'
+
+            AND     event_type IN ('cntrl')
+
+            AND     TOLOWER(os) in ('android' , 'iphone os')
+
+            AND     app_id IN ('24936599@iphoneos','24937400@iphoneos','24937026@android','24938611@android', 
+
+                            '25534648@iphoneos','25219813@android', 
+
+                            '25210016@android', '24936599@ipad', 
+
+                            '24937400@ipad', '25534648@ipad')
+
+            AND     arg1 IN ('/lazada_member.myaccount_orders.viewall_click','/lazada_order_mgt.order_list.click_order_card'
+
+     ,'/lazada_order_mgt.order_details.only_refund_item_mobile','/daraz-return-process.create-return.enter','/daraz-refund-only-process.create-return.enter'
+
+     ,'/daraz-refund-only-process.create-return.return-reason-L1','/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-refund-only-process.create-return.add-product','/daraz-refund-only-process.create-return.comment','/daraz-refund-only-process.create-return.submit-button'
+
+     ,'/daraz-return-process.create-return.return-reason-L1','/daraz-return-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-return-process.create-return.comment','/daraz-return-process.create-return.add-product','/daraz-return-process.create-return.next-step1',
+
+     '/daraz-return-process.create-return.pick-up','/daraz-return-process.create-return.drop-off','/daraz-return-process.create-return.next-step2'
+
+     ,'/daraz-return-process.create-return.submit-button','/daraz-return-process.return-detail.enter','/daraz-return-process.return-detail.leave'
+
+     ,'/daraz-refund-only-process.return-detail.enter','/daraz-return-process.progress-tracking.enter','/daraz-refund-only-process.progress-tracking.enter'
+
+     ,'/daraz-return-process.progress-tracking.leave','/lazada_logistic_detail.logistic_detail.back_to_order_detail',
+
+     '/lazada_order_mgt.order_details.click_track_package',
+
+     '/lazada_member.myaccount_orders.return',
+
+     '/Cancellation.CancellationTracking.jump_to_order',
+
+     '/daraz_order_management.order_list.refund_btn_click',
+
+     '/daraz_order_management.order_list.refund_btn_exposure'
+
+     )
+
+        ) 
+
+),
+
+
+
+app_logs_data_ref AS(
+
+        select *
+
+       ,case when return_reason = 'Component or accessory is missing from the item' then 'Missing'
+
+             when return_reason = 'Item has missing freebie' then 'Missing'
+
+             when return_reason = 'Item or accessory is missing in the package' then 'Missing'
+
+             when return_reason = 'Missing' then return_reason
+
+             when return_reason = 'Missing item' then 'Missing'
+
+             when return_reason = 'Item is damaged/broken/has dent or scratches' then 'Damage/Defective'
+
+             when return_reason = 'Item is defective or not working' then 'Damage/Defective'
+
+             when return_reason = 'Item does not match description or picture' then 'Others'
+
+             when return_reason = 'I did not order this size' then 'Others'
+
+             when return_reason = 'I received the wrong item' then 'Others'
+
+             when return_reason = 'Item does not fit me' then 'Others'
+
+             when return_reason = 'Don\'t want the item anymore' then 'Others'
+
+             when return_reason = 'The item is fake or is a counterfeit item' then 'Others'
+
+             when return_reason not in ( 'Component or accessory is missing from the item','Item has missing freebie'
+
+                                        ,'Item or accessory is missing in the package','Missing','Missing item'
+
+                                        ,'Item is damaged/broken/has dent or scratches','Item is defective or not working'
+
+                                        ,'Item does not match description or picture','I did not order this size'
+
+                                        ,'I received the wrong item','Item does not fit me','Don\'t want the item anymore'
+
+                                        ,'The item is fake or is a counterfeit item','\\N') then 'Localization'
+
+             else '\\N' end as return_reason_map
+
+        ,case when color is null then 'enable' else color end as color_map
+
+from app_logs_data
+
+),
+
+
+
+Order_detail_page_stats AS(
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/lazada_order_mgt.order_list.click_order_card'
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-return-process.create-return.enter'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_list.click_order_card'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-refund-only-process.create-return.enter'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_list.click_order_card'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-return-process.create-return.submit-button'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_list.click_order_card'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-refund-only-process.create-return.submit-button'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_list.click_order_card'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+),
+
+
+
+my_returns_page_stats AS(
+
+    select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/lazada_member.myaccount_orders.return'
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz_order_management.order_list.refund_btn_click'
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+Union ALL 
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-return-process.create-return.enter'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-refund-only-process.create-return.enter'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-return-process.create-return.submit-button'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-refund-only-process.create-return.submit-button'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+),
+
+
+
+my_orders_page_stats as (
+
+    select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+or arg1 = '/lazada_member.myaccount_orders.viewall_click'
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz_order_management.order_list.refund_btn_click'
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-return-process.create-return.enter'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-refund-only-process.create-return.enter'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-return-process.create-return.submit-button'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+
+
+UNION ALL
+
+
+
+select venture,arg1,count(DISTINCT utdid) as user_count
+
+from app_logs_data_ref
+
+where arg1 = '/daraz-refund-only-process.create-return.submit-button'
+
+and utdid in(
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/Cancellation.CancellationTracking.jump_to_order'
+
+    and utdid is not null
+
+)
+
+and color_map in ('enable','only_refund_highlight')
+
+group by venture,arg1
+
+)
+
+
+
+
+
+-- INSERT OVERWRITE TABLE ads_drz_order_detail_page_stats PARTITION(ds , venture)
+
+Select 'Order_Detail_Page' as section, user_count as result, 'Traffic' as fact,venture
+
+FROM Order_detail_page_stats
+
+WHERE arg1 = '/lazada_order_mgt.order_list.click_order_card' 
+
+
+
+
+
+;
+
+-- return_field_status
+
+DROP TABLE IF EXISTS orf_return_field_status;
+CREATE TABLE orf_return_field_status LIFECYCLE 7 AS
+WITH  app_logs_data  AS (
+
+SELECT  *
+
+        ,GET_JSON_OBJECT(args_json,'$.color') color
+
+        ,GET_JSON_OBJECT(args_json,'$.reason') return_reason
+
+FROM    (
+
+            SELECT  *
+
+                    ,REPLACE(CONCAT('{"',REPLACE(args,'=','":"'),'"}'),',','","') args_json
+
+            FROM    glb_drz_cdm.mid_glb_log_app_di_v
+
+            WHERE              ds >= '20230901'
+
+           AND     ds < '20240101'
+
+            AND     event_type IN ('cntrl')
+
+            AND     TOLOWER(os) in ('android' , 'iphone os')
+
+            AND     app_id IN ('24936599@iphoneos','24937400@iphoneos','24937026@android','24938611@android', 
+
+                            '25534648@iphoneos','25219813@android', 
+
+                            '25210016@android', '24936599@ipad', 
+
+                            '24937400@ipad', '25534648@ipad')
+
+            AND     arg1 IN ('/lazada_member.myaccount_orders.viewall_click','/lazada_order_mgt.order_list.click_order_card'
+
+     ,'/lazada_order_mgt.order_details.only_refund_item_mobile','/daraz-return-process.create-return.enter','/daraz-refund-only-process.create-return.enter'
+
+     ,'/daraz-refund-only-process.create-return.return-reason-L1','/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-refund-only-process.create-return.add-product','/daraz-refund-only-process.create-return.comment','/daraz-refund-only-process.create-return.submit-button'
+
+     ,'/daraz-return-process.create-return.return-reason-L1','/daraz-return-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-return-process.create-return.comment','/daraz-return-process.create-return.add-product','/daraz-return-process.create-return.next-step1',
+
+     '/daraz-return-process.create-return.pick-up','/daraz-return-process.create-return.drop-off','/daraz-return-process.create-return.next-step2'
+
+     ,'/daraz-return-process.create-return.submit-button','/daraz-return-process.return-detail.enter','/daraz-return-process.return-detail.leave'
+
+     ,'/daraz-refund-only-process.return-detail.enter','/daraz-return-process.progress-tracking.enter','/daraz-refund-only-process.progress-tracking.enter'
+
+     ,'/daraz-return-process.progress-tracking.leave','/lazada_logistic_detail.logistic_detail.back_to_order_detail',
+
+     '/lazada_order_mgt.order_details.click_track_package')
+
+        ) 
+
+),
+
+
+
+app_logs_data_ref AS(
+
+select *
+
+       ,case when return_reason = 'Component or accessory is missing from the item' then 'Missing'
+
+             when return_reason = 'Item has missing freebie' then 'Missing'
+
+             when return_reason = 'Item or accessory is missing in the package' then 'Missing'
+
+             when return_reason = 'Missing' then return_reason
+
+             when return_reason = 'Missing item' then 'Missing'
+
+             when return_reason = 'Item is damaged/broken/has dent or scratches' then 'Damage/Defective'
+
+             when return_reason = 'Item is defective or not working' then 'Damage/Defective'
+
+             when return_reason = 'Item does not match description or picture' then 'Others'
+
+             when return_reason = 'I did not order this size' then 'Others'
+
+             when return_reason = 'I received the wrong item' then 'Others'
+
+             when return_reason = 'Item does not fit me' then 'Others'
+
+             when return_reason = 'Don\'t want the item anymore' then 'Others'
+
+             when return_reason = 'The item is fake or is a counterfeit item' then 'Others'
+
+             when return_reason not in ( 'Component or accessory is missing from the item','Item has missing freebie'
+
+                                        ,'Item or accessory is missing in the package','Missing','Missing item'
+
+                                        ,'Item is damaged/broken/has dent or scratches','Item is defective or not working'
+
+                                        ,'Item does not match description or picture','I did not order this size'
+
+                                        ,'I received the wrong item','Item does not fit me','Don\'t want the item anymore'
+
+                                        ,'The item is fake or is a counterfeit item','\\N') then 'Localization'
+
+             else '\\N' end as return_reason_map
+
+        ,case when color is null then 'enable' else color end as color_map
+
+from app_logs_data
+
+),
+
+
+
+orf_fields_return AS (
+
+select 'ORF_Page1' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        ,b.ds      as ds
+
+        ,b.venture as venture
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-return-process.create-return.return-reason-L1',
+
+                '/daraz-return-process.create-return.comment'
+
+                ,'/daraz-return-process.create-return./daraz-return-process.create-return.camera'
+
+                ,'/daraz-return-process.create-return.add-product')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/daraz-return-process.create-return.enter'
+
+    and utdid in (
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+    and utdid is not null
+
+    )
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+
+
+UNION ALL 
+
+
+
+select 'ORF_Page2' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        ,b.ds      as ds
+
+        ,b.venture as venture
+
+from (
+
+    select * from app_logs_data_ref a
+
+    where arg1 in ('/daraz-return-process.create-return.pick-up','/daraz-return-process.create-return.drop-off')
+
+) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/daraz-return-process.create-return.next-step1'
+
+        and utdid in (
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+    and utdid is not null
+
+    )
+
+) b
+
+on (b.utdid = a.utdid)
+
+),
+
+
+
+orf_fields_return_stats AS( 
+
+SELECT  --ds,
+venture
+
+        ,page_arg1
+
+        ,button_arg1
+
+        ,identifier
+
+        ,count_page
+
+        ,COUNT(DISTINCT (page_utdid)) as user_count
+
+FROM    (
+
+            SELECT  *
+
+                    ,COUNT(DISTINCT page_utdid) OVER (PARTITION BY venture,page_arg1 ) AS count_page
+
+            FROM    orf_fields_return
+
+        ) 
+
+GROUP BY --ds,
+venture
+
+         ,page_arg1
+
+         ,button_arg1
+
+         ,identifier
+
+         ,count_page
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- INSERT OVERWRITE TABLE ads_drz_orf_fields_return_stats PARTITION(ds , venture)
+
+Select 'Return_Reason' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       --,ds
+       ,venture
+
+FROM orf_fields_return_stats
+
+WHERE button_arg1 = '/daraz-return-process.create-return.return-reason-L1'
+
+
+
+
+UNION ALL 
+
+--add pciture
+
+Select 'Add_Picture' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       --,ds
+       ,venture
+
+FROM orf_fields_return_stats
+
+WHERE button_arg1 = '/daraz-return-process.create-return./daraz-return-process.create-return.camera'
+
+
+UNION ALL 
+
+--add comments
+
+Select 'Add_Comments' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       --,ds
+       ,venture
+
+FROM orf_fields_return_stats
+
+WHERE button_arg1 = '/daraz-return-process.create-return.comment'
+
+
+
+UNION ALL 
+
+-- add product
+
+Select 'Add_Product' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       --,ds
+       ,venture
+
+FROM orf_fields_return_stats
+
+WHERE button_arg1 = '/daraz-return-process.create-return.add-product'
+
+
+
+
+UNION ALL
+
+-- page Pickup
+
+Select 'Pick_up' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       --,ds
+       ,venture
+
+FROM orf_fields_return_stats
+
+WHERE button_arg1 = '/daraz-return-process.create-return.pick-up'
+
+
+
+UNION ALL 
+
+--page drop off
+
+Select 'Drop_off' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       --,ds
+       ,venture
+
+FROM orf_fields_return_stats
+
+WHERE button_arg1 = '/daraz-return-process.create-return.drop-off'
+
+
+;
+
+
+-- ORF refund fields
+--odps sql 
+
+--********************************************************************--
+
+--author:Faisal, Anas
+
+--create time:2023-06-07 16:07:29
+
+--********************************************************************--
+DROP TABLE IF EXISTS orf_field_refund_status;
+CREATE TABLE orf_field_refund_status LIFECYCLE 7 AS
+WITH  app_logs_data  AS (
+
+SELECT  *
+
+        ,GET_JSON_OBJECT(args_json,'$.color') color
+
+        ,GET_JSON_OBJECT(args_json,'$.reason') return_reason
+
+FROM    (
+
+            SELECT  *
+
+                    ,REPLACE(CONCAT('{"',REPLACE(args,'=','":"'),'"}'),',','","') args_json
+
+            FROM    glb_drz_cdm.mid_glb_log_app_di_v
+
+            WHERE   ds >= '20230901'
+
+           AND     ds < '20240101'
+
+            AND     event_type IN ('cntrl')
+
+            AND     TOLOWER(os) in ('android' , 'iphone os')
+
+            AND     app_id IN ('24936599@iphoneos','24937400@iphoneos','24937026@android','24938611@android', 
+
+                            '25534648@iphoneos','25219813@android', 
+
+                            '25210016@android', '24936599@ipad', 
+
+                            '24937400@ipad', '25534648@ipad')
+
+            AND     arg1 IN ('/lazada_member.myaccount_orders.viewall_click','/lazada_order_mgt.order_list.click_order_card'
+
+     ,'/lazada_order_mgt.order_details.only_refund_item_mobile','/daraz-return-process.create-return.enter','/daraz-refund-only-process.create-return.enter'
+
+     ,'/daraz-refund-only-process.create-return.return-reason-L1','/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-refund-only-process.create-return.add-product','/daraz-refund-only-process.create-return.comment','/daraz-refund-only-process.create-return.submit-button'
+
+     ,'/daraz-return-process.create-return.return-reason-L1','/daraz-return-process.create-return./daraz-return-process.create-return.camera'
+
+     ,'/daraz-return-process.create-return.comment','/daraz-return-process.create-return.add-product','/daraz-return-process.create-return.next-step1',
+
+     '/daraz-return-process.create-return.pick-up','/daraz-return-process.create-return.drop-off','/daraz-return-process.create-return.next-step2'
+
+     ,'/daraz-return-process.create-return.submit-button','/daraz-return-process.return-detail.enter','/daraz-return-process.return-detail.leave'
+
+     ,'/daraz-refund-only-process.return-detail.enter','/daraz-return-process.progress-tracking.enter','/daraz-refund-only-process.progress-tracking.enter'
+
+     ,'/daraz-return-process.progress-tracking.leave','/lazada_logistic_detail.logistic_detail.back_to_order_detail',
+
+     '/lazada_order_mgt.order_details.click_track_package')
+
+        ) 
+
+),
+
+
+
+app_logs_data_ref AS(
+
+select *
+
+       ,case when return_reason = 'Component or accessory is missing from the item' then 'Missing'
+
+             when return_reason = 'Item has missing freebie' then 'Missing'
+
+             when return_reason = 'Item or accessory is missing in the package' then 'Missing'
+
+             when return_reason = 'Missing' then return_reason
+
+             when return_reason = 'Missing item' then 'Missing'
+
+             when return_reason = 'Item is damaged/broken/has dent or scratches' then 'Damage/Defective'
+
+             when return_reason = 'Item is defective or not working' then 'Damage/Defective'
+
+             when return_reason = 'Item does not match description or picture' then 'Others'
+
+             when return_reason = 'I did not order this size' then 'Others'
+
+             when return_reason = 'I received the wrong item' then 'Others'
+
+             when return_reason = 'Item does not fit me' then 'Others'
+
+             when return_reason = 'Don\'t want the item anymore' then 'Others'
+
+             when return_reason = 'The item is fake or is a counterfeit item' then 'Others'
+
+             when return_reason not in ( 'Component or accessory is missing from the item','Item has missing freebie'
+
+                                        ,'Item or accessory is missing in the package','Missing','Missing item'
+
+                                        ,'Item is damaged/broken/has dent or scratches','Item is defective or not working'
+
+                                        ,'Item does not match description or picture','I did not order this size'
+
+                                        ,'I received the wrong item','Item does not fit me','Don\'t want the item anymore'
+
+                                        ,'The item is fake or is a counterfeit item','\\N') then 'Localization'
+
+             else '\\N' end as return_reason_map
+
+        ,case when color is null then 'enable' else color end as color_map
+
+from app_logs_data
+
+),
+
+
+
+orf_fields_refund AS (
+
+select 'ORF_Page1' AS identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        ,b.ds      as ds
+
+        ,b.venture as venture
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-refund-only-process.create-return.return-reason-L1',
+
+                '/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+                ,'/daraz-refund-only-process.create-return.comment'
+
+                ,'/daraz-refund-only-process.create-return.add-product'
+
+                ,'/daraz-refund-only-process.create-return.submit-button')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/daraz-refund-only-process.create-return.enter'
+
+    and utdid in (
+
+    select DISTINCT utdid 
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+    and utdid is not null
+
+    )
+
+) b
+
+on (b.utdid = a.utdid)
+
+
+
+
+
+UNION ALL 
+
+
+
+select 'PRE_ORF_Page' as identifier
+
+        ,a.utdid   as button_utdid
+
+        ,b.utdid   as page_utdid
+
+        ,a.arg1    as button_arg1
+
+        ,b.arg1    as page_arg1
+
+        ,b.ds      as ds
+
+        ,b.venture as venture
+
+        --,a.return_reason_map 
+
+from (
+
+    select * from app_logs_data_ref
+
+where arg1 in ('/daraz-refund-only-process.create-return.enter')) a
+
+right join (
+
+    select *
+
+    from app_logs_data_ref
+
+    where arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile'
+
+) b
+
+on (b.utdid = a.utdid)
+
+),
+
+
+
+
+
+orf_fields_refund_stats AS (
+
+SELECT  ds
+
+        ,venture
+
+        ,page_arg1
+
+        ,button_arg1
+
+        ,identifier
+
+        ,count_page
+
+        ,COUNT(DISTINCT (page_utdid)) as user_count
+
+FROM    (
+
+            SELECT  *
+
+                    ,COUNT(DISTINCT page_utdid) OVER (PARTITION BY ds,venture,page_arg1 ) AS count_page
+
+            FROM    orf_fields_refund
+
+        ) 
+
+GROUP BY ds
+
+         ,venture
+
+         ,page_arg1
+
+         ,button_arg1
+
+         ,identifier
+
+         ,count_page
+
+ )
+
+
+
+
+
+
+
+
+
+
+
+
+
+ -- INSERT OVERWRITE TABLE ads_drz_orf_fields_refund_stats PARTITION(ds , venture)
+
+ Select 'ORF_Field_Clicks' as section
+
+       ,max(count_page) as result
+
+       ,'Number of Clicks' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE page_arg1 = '/daraz-refund-only-process.create-return.enter'
+
+group by ds,venture
+
+
+
+UNION ALL 
+
+
+
+Select 'ORF_Field_Clicks' as section
+
+       ,Round(max(count_page)/max(count_button),6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds
+
+       ,venture
+
+FROM (
+
+    select  ds,venture
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.enter' then count_page else 0 end as count_page
+
+    ,case when page_arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile' then count_page else 0 end as count_button
+
+    from orf_fields_refund_stats
+
+   WHERE page_arg1 in ('/daraz-refund-only-process.create-return.enter','/lazada_order_mgt.order_details.only_refund_item_mobile')
+
+   and button_arg1 is not null
+
+)
+
+group by ds,venture
+
+
+
+UNION ALL 
+
+
+
+Select 'ORF_Field_Clicks' as section
+
+       ,Round(1-(max(count_page)/max(count_button)),6) as result
+
+       ,'Drop off (%)' as fact
+
+       ,ds
+
+       ,venture
+
+FROM (
+
+    select  ds,venture
+
+    ,case when page_arg1 = '/daraz-refund-only-process.create-return.enter' then count_page else 0 end as count_page
+
+    ,case when page_arg1 = '/lazada_order_mgt.order_details.only_refund_item_mobile' then count_page else 0 end as count_button
+
+    from orf_fields_refund_stats
+
+   WHERE page_arg1 in ('/daraz-refund-only-process.create-return.enter','/lazada_order_mgt.order_details.only_refund_item_mobile')
+
+   and button_arg1 is not null
+
+)
+
+group by ds,venture
+
+
+
+UNION ALL 
+
+
+
+Select 'Return_Reason' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.return-reason-L1'
+
+
+
+UNION ALL 
+
+
+
+Select 'Return_Reason' as section
+
+       ,Round(case when identifier = 'ORF_Page1' then user_count else 0 end/count_page,6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.return-reason-L1'
+
+
+
+UNION ALL 
+
+
+
+Select  'Return_Reason' as section
+
+        ,ROUND(((case when identifier = 'ORF_Page1' then count_page else 0 end - case when identifier = 'ORF_Page1' then user_count else 0 end) 
+
+         /case when identifier = 'ORF_Page1' then count_page else 0 end),6) as result
+
+        , 'Drop off (%)' as fact
+
+        ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.return-reason-L1'
+
+
+
+
+
+UNION ALL 
+
+--add pciture
+
+Select 'Add_Picture' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+
+
+UNION ALL 
+
+
+
+Select 'Add_Picture' as section
+
+       ,Round(case when identifier = 'ORF_Page1' then user_count else 0 end/count_page,6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+
+
+UNION ALL 
+
+
+
+Select  'Add_Picture' as section
+
+        ,ROUND(((case when identifier = 'ORF_Page1' then count_page else 0 end - case when identifier = 'ORF_Page1' then user_count else 0 end) 
+
+         /case when identifier = 'ORF_Page1' then count_page else 0 end),6) as result
+
+        , 'Drop off (%)' as fact
+
+        ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return./daraz-return-process.create-return.camera'
+
+
+
+UNION ALL 
+
+--add comments
+
+Select 'Add_Comments' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.comment'
+
+
+
+UNION ALL 
+
+
+
+Select 'Add_Comments' as section
+
+       ,Round(case when identifier = 'ORF_Page1' then user_count else 0 end/count_page,6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.comment'
+
+
+
+UNION ALL 
+
+
+
+Select  'Add_Comments' as section
+
+        ,ROUND(((case when identifier = 'ORF_Page1' then count_page else 0 end - case when identifier = 'ORF_Page1' then user_count else 0 end) 
+
+         /case when identifier = 'ORF_Page1' then count_page else 0 end),6) as result
+
+        , 'Drop off (%)' as fact
+
+        ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.comment'
+
+
+
+
+
+UNION ALL 
+
+-- add product
+
+Select 'Add_Product' as section
+
+       ,user_count as result
+
+       ,'Number of Clicks' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.add-product'
+
+
+
+UNION ALL 
+
+
+
+Select 'Add_Product' as section
+
+       ,Round(case when identifier = 'ORF_Page1' then user_count else 0 end/count_page,6) as result
+
+       ,'CTR (%)' as fact
+
+       ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.add-product'
+
+
+
+UNION ALL 
+
+
+
+Select  'Add_Product' as section
+
+        ,ROUND(((case when identifier = 'ORF_Page1' then count_page else 0 end - case when identifier = 'ORF_Page1' then user_count else 0 end) 
+
+         /case when identifier = 'ORF_Page1' then count_page else 0 end),6) as result
+
+        , 'Drop off (%)' as fact
+
+        ,ds,venture
+
+FROM orf_fields_refund_stats
+
+WHERE button_arg1 = '/daraz-refund-only-process.create-return.add-product'
+
+;
+
+
+
+select * from overall_return_funnel;
+select * from orf_return_field_status;
+select * from order_details_page;
+
+select venture, case when section = 'Return_Reason' then '4 - Return reason selection' 
+     when section = 'Page_1' then '3 - ORF' 
+     when section = 'Page_2' then '5 - ORF page - Click next'
+     when section = 'Page_3' then '7 - Pickup/Dropoff - Click Next'
+     when section = 'Pick_up' or section = 'Drop_off' then '6 - Pickup/Dropoff selection'
+     when section = 'Submit' then '8 - Submit'
+     when section = 'Order_Detail_Page' then '1 - Order_Detail_Page' 
+     when section = 'PRE_ORF_Page' then '2 - PRE_ORF_Page'
+     else section end as return_steps
