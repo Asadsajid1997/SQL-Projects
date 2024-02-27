@@ -1,0 +1,91 @@
+
+-- Calculation of leadtime percentiles using subqueries and percentile_approx() function
+DROP TABLE IF EXISTS return_Lts_asad_2
+;
+
+CREATE TABLE return_Lts_asad_2
+LIFECYCLE 7 AS
+SELECT  COALESCE(month_,'All') AS month_
+        ,venture
+        ,COALESCE(3pl,'All') AS 3pl
+        ,business_type
+        ,PERCENTILE_APPROX(LT,0.90) AS lead_time_in_days
+FROM    (
+            SELECT  TO_CHAR(a.lvl1_rts_ts,'yyyy-mm') AS month_
+                    ,a.venture
+                    ,CASE   WHEN TOLOWER(a.fm_3pl_name) LIKE '%dex%' THEN 'DEX'
+                            WHEN TOLOWER(a.fm_3pl_name) LIKE '%shop%' THEN 'DEX'
+                            WHEN TOLOWER(a.fm_3pl_name) LIKE '%lmp%' THEN 'LMP'
+                            ELSE '3PL'
+                    END AS 3pl
+                    ,b.business_type
+                    ,ABS(DATEDIFF(a.lvl1_rts_ts,a.lvl1_tts_ts,'dd')) LT
+            FROM    packages_table a
+            INNER JOIN sales_table b
+            ON      b.order_number = a.platform_order_number --             and a.tracking_number = b.tracking_number
+            WHERE   a.ds = MAX_PT('packages_table')
+            AND     b.ds = MAX_PT('sales_table')
+            AND     TO_CHAR(a.lvl1_rts_ts,'yyyymmdd') >= '20230401'
+            AND     TO_CHAR(a.lvl1_rts_ts,'yyyymmdd') < '20231101'
+            AND     TOLOWER(a.final_status) <> 'package_cancelled'
+            AND     fm_delivery_type <> 'Drop-off'
+            AND     lvl3_with_dop_waiting_for_pickup_ts IS NULL
+            AND     TOLOWER(a.package_type) = 'customer_return'
+            AND     ABS(DATEDIFF(a.lvl1_rts_ts,a.lvl1_tts_ts,'dd')) IS NOT NULL
+        ) 
+GROUP BY ROLLUP (month_)
+         ,venture
+         ,ROLLUP (3pl)
+         ,business_type
+;
+
+
+-- Calculation of leadtime percentiles using subqueries and window functions
+DROP TABLE IF EXISTS return_Lts_asad
+;
+
+CREATE TABLE return_Lts_asad
+LIFECYCLE 7 AS
+SELECT  DISTINCT month_
+        ,venture
+        ,3pl
+        ,business_type
+        ,LT
+FROM    (
+            SELECT  *
+                    ,MAX(COL3) OVER (PARTITION BY month_,venture,3pl,business_type ) AS MAX_COL3
+            FROM    (
+                        SELECT  month_
+                                ,venture
+                                ,COALESCE(3pl,'All') AS 3pl
+                                ,business_type
+                                ,LT
+                                ,ROW_NUMBER() OVER (PARTITION BY month_,venture,3pl,business_type ORDER BY LT ASC ) AS COL3
+                        FROM    (
+                                    SELECT  TO_CHAR(a.lvl1_rts_ts,'yyyy-mm') AS month_
+                                            ,a.venture
+                                            ,CASE   WHEN TOLOWER(a.fm_3pl_name) LIKE '%dex%' THEN 'DEX'
+                                                    WHEN TOLOWER(a.fm_3pl_name) LIKE '%shop%' THEN 'DEX'
+                                                    WHEN TOLOWER(a.fm_3pl_name) LIKE '%lmp%' THEN 'LMP'
+                                                    ELSE '3PL'
+                                            END AS 3pl
+                                            ,b.business_type
+                                            ,ABS(DATEDIFF(a.lvl1_rts_ts,a.lvl1_tts_ts,'dd')) LT
+                                    FROM    packages_table a
+                                    INNER JOIN sales_table b
+                                    ON      b.order_number = a.platform_order_number --             and a.tracking_number = b.tracking_number
+                                    WHERE   a.ds = MAX_PT('packages_table')
+                                    AND     b.ds = MAX_PT('sales_table')
+                                    AND     TO_CHAR(a.lvl1_rts_ts,'yyyymmdd') >= '20230401'
+                                    AND     TO_CHAR(a.lvl1_rts_ts,'yyyymmdd') < '20231101'
+                                    AND     TOLOWER(a.final_status) <> 'package_cancelled'
+                                    AND     fm_delivery_type <> 'Drop-off'
+                                    AND     lvl3_with_dop_waiting_for_pickup_ts IS NULL
+                                    AND     TOLOWER(a.package_type) = 'customer_return'
+                                    AND     ABS(DATEDIFF(a.lvl1_rts_ts,a.lvl1_tts_ts,'dd')) IS NOT NULL
+                                ) 
+                        ORDER BY LT ASC
+                    ) 
+        ) 
+WHERE   COL3 = floor(MAX_COL3 * 0.98)
+;
