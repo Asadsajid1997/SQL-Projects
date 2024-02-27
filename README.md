@@ -12,4 +12,4 @@ I am a passionate data enthusiast with a strong background in SQL. Over the year
 # SQL Projects
 In this repository, you will find SQL projects executed on the real life data of one of the largest e-commerce company of Pakistan.
 
-  1. Buyer Return Promotional Activity: The analysis for this task involved identifying the buyers who have never initiated a return in their lifetime and educate them about the complete, free of cost return             process before the biggest sale of the platform.
+  1. [Buyer Return Promotional Activity](https://github.com/Asadsajid1997/SQL-Projects/blob/main/Scripts/Buyer%20Return%20Promotional%20Activity): The analysis for this task involved identifying the buyers who have never initiated a return in their lifetime and educate them about the complete, free of cost return             process before the biggest sale of the platform.
