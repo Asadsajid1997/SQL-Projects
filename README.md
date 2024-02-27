@@ -12,7 +12,8 @@ I am a passionate data enthusiast with a strong background in SQL. Over the year
 # SQL Projects
 In this repository, you will find SQL projects executed on the real life data of one of the largest e-commerce company of Pakistan.
 
-  1. Return Leadtime Percentile: The analysis entailed a meticulous calculation of lead time percentiles to ascertain the percentage of returns finalized within specific timeframes. Utilizing advanced SQL techniques, including subqueries, window functions, and the Percentile_approx() function, we were able to derive critical insights such as the fact that 95% of returns are completed within a 5-day period. This information enabled us to communicate the approximate promise time of processing their returns.
+  1. [Return Leadtime Percentile](https://github.com/Asadsajid1997/SQL-Projects/blob/main/Scripts/Return%20Leadtime%20Percentile): The analysis entailed a meticulous calculation of lead time percentiles to ascertain the percentage of returns finalized within specific timeframes. Utilizing advanced SQL techniques, including subqueries, window functions, and the Percentile_approx() function, we were able to derive critical insights such as the fact that 95% of returns are completed within a 5-day period. This information enabled us to communicate the approximate promise time of processing their returns.
+
 
   2. [Buyer Return Promotional Activity](https://github.com/Asadsajid1997/SQL-Projects/blob/main/Scripts/Buyer%20Return%20Promotional%20Activity): The objective of our task was to conduct a comprehensive analysis
 to identify customers who have never engaged in the return process throughout their tenure with our platform. Upon identifying these customers, our goal is to provide them with a thorough education on our           seamless and cost-free return process.
