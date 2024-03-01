@@ -26,3 +26,6 @@ to identify customers who have never engaged in the return process throughout th
 # Gold Badge from HackerRank
 ![image](https://github.com/Asadsajid1997/SQL-Projects/assets/126636246/41168564-9e31-44b7-bce3-32e08a2d0cd5)
 
+Link to my profile on HackerRank:
+https://www.hackerrank.com/profile/asadsajid98
+
